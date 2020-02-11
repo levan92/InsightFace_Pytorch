@@ -8,9 +8,10 @@ def get_config(training = True):
     conf = edict()
     conf.data_path = Path('data')
     conf.work_path = Path('work_space/')
-    conf.model_path = conf.work_path/'models'
-    conf.log_path = conf.work_path/'log'
-    conf.save_path = conf.work_path/'save'
+    conf.model_path = './model_ir_se50.pth'
+    # conf.model_path = conf.work_path/'models'
+    # conf.log_path = conf.work_path/'log'
+    # conf.save_path = conf.work_path/'save'
     conf.input_size = [112,112]
     conf.embedding_size = 512
     conf.use_mobilfacenet = False
@@ -19,6 +20,7 @@ def get_config(training = True):
     conf.net_mode = 'ir_se' # or 'ir'
     conf.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     conf.test_transform = trans.Compose([
+                    trans.Resize([112,112]),
                     trans.ToTensor(),
                     trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                 ])
