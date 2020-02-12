@@ -35,9 +35,9 @@ class Arcface(object):
         self.model.eval()
         print('{}_{} FR model (arcface) generated'.format(net_mode, net_depth))
 
-        input_size = [112,112]
+        self.input_size = [112,112]
         self.preproc_transform = trans.Compose([
-                        trans.Resize(input_size),
+                        trans.Resize(self.input_size),
                         trans.ToTensor(),
                         trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                                                 ])
