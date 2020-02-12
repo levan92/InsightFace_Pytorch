@@ -6,6 +6,9 @@ from pathlib import Path
 from torchvision import transforms as trans
 
 from .model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
+from pathlib import Path
+
+THIS_DIR=Path(__file__).parent.absolute()
 
 class Arcface(object):
     #TODO: build arcface for batch processing
@@ -24,11 +27,11 @@ class Arcface(object):
         drop_ratio = 0.6
         net_mode = 'ir_se' # or 'ir'
         if model_path is None:
-            model_path = './model_ir_se50.pth'
-        assert Path(model_path).is_file()
+            model_path = THIS_DIR / 'model_ir_se50.pth'
+        assert model_path.is_file(),'Model not found at {}'.format(model_path)
         
         self.model = Backbone(net_depth, drop_ratio, net_mode).to(self.device)
-        self.model.load_state_dict(torch.load(model_path))
+        self.model.load_state_dict(torch.load(str(model_path)))
         self.model.eval()
         print('{}_{} FR model (arcface) generated'.format(net_mode, net_depth))
 
@@ -58,18 +61,21 @@ class Arcface(object):
         '''
         faces : list of ndarray (BGR channels)
         '''
-        embs = []
-        for img in faces:
+        embs = np.zeros((len(faces), 512))
+        for i, img in enumerate(faces):
             img = Image.fromarray(img)
             if self.tta:
                 mirror = trans.functional.hflip(img)
-                emb = self.model(self.preproc_transform(img).to(self.device).unsqueeze(0))
-                emb_mirror = self.model(self.preproc_transform(mirror).to(self.device).unsqueeze(0))
-                embs.append(l2_norm(emb + emb_mirror))
-            else:                        
-                embs.append(self.model(self.preproc_transform(img).to(self.device).unsqueeze(0)))
-        source_embs = torch.cat(embs)
-        return source_embs.cpu().data.numpy()
+                input_ = self.preproc_transform(img).to(self.device).unsqueeze(0)
+                input_mirror = self.preproc_transform(mirror).to(self.device).unsqueeze(0)
+                emb = self.model(input_)
+                emb_mirror = self.model(input_mirror)
+                emb = l2_norm(emb + emb_mirror).cpu().data.numpy()
+            else:              
+                input_ = self.preproc_transform(img).to(self.device).unsqueeze(0)
+                emb = self.model(input_).cpu().data.numpy()
+            embs[i, ] = emb
+        return embs
 
     # def infer(self, conf, faces, target_embs, tta=True):
     #     '''
