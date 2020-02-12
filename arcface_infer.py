@@ -5,12 +5,17 @@ from PIL import Image
 from pathlib import Path
 from torchvision import transforms as trans
 
-from model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
+from .model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
 
 class Arcface(object):
     #TODO: build arcface for batch processing
-    def __init__(self, model_path = None, threshold=1.5, use_gpu=True):
-        self.threshold = threshold
+    def __init__(self, model_path = None, use_gpu=True, tta=True):
+        '''
+        model_path : path to model
+        use_gpu : use gpu or cpu
+        tta : test time augmentation (hfilp, that's all)
+        '''
+        self.tta = tta
         if use_gpu:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -42,23 +47,21 @@ class Arcface(object):
         toc = time.time()
         print('warmed up! {:0.3f}s'.format(toc - tic))
 
-    def get_embeds_batch(self, faces, tta=True):
+    def get_embeds(self, faces):
         '''
         passthrough function to fit legacy api, TODO implement a proper batch inference 
         faces : list of ndarray (BGR channels)
-        tta : test time augmentation (hfilp, that's all)
         '''
-        return self.embed(faces, tta=tta)
+        return self.embed(faces)
 
-    def embed(self, faces, tta=True):
+    def embed(self, faces):
         '''
         faces : list of ndarray (BGR channels)
-        tta : test time augmentation (hfilp, that's all)
         '''
         embs = []
         for img in faces:
             img = Image.fromarray(img)
-            if tta:
+            if self.tta:
                 mirror = trans.functional.hflip(img)
                 emb = self.model(self.preproc_transform(img).to(self.device).unsqueeze(0))
                 emb_mirror = self.model(self.preproc_transform(mirror).to(self.device).unsqueeze(0))
