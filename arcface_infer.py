@@ -31,7 +31,10 @@ class Arcface(object):
         assert model_path.is_file(),'Model not found at {}'.format(model_path)
         
         self.model = Backbone(net_depth, drop_ratio, net_mode).to(self.device)
-        self.model.load_state_dict(torch.load(str(model_path)))
+        if not torch.cuda.is_available():
+            self.model.load_state_dict(torch.load(str(model_path), map_location='cpu'))
+        else:
+            self.model.load_state_dict(torch.load(str(model_path)))
         self.model.eval()
         print('{}_{} FR model (arcface) generated'.format(net_mode, net_depth))
 
