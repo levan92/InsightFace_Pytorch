@@ -5,7 +5,10 @@ from PIL import Image
 from pathlib import Path
 from torchvision import transforms as trans
 
-from .model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
+if Path.cwd().stem == 'arcface_pytorch':
+    from model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
+else:
+    from .model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
 from pathlib import Path
 
 THIS_DIR=Path(__file__).parent.absolute()
