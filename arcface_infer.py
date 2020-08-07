@@ -15,7 +15,7 @@ THIS_DIR=Path(__file__).parent.absolute()
 
 class Arcface(object):
     #TODO: build arcface for batch processing
-    def __init__(self, model_path = None, use_gpu=True, tta=True):
+    def __init__(self, model_path = None, use_gpu=True, tta=True, half=True):
         '''
         model_path : path to model
         use_gpu : use gpu or cpu
@@ -39,6 +39,9 @@ class Arcface(object):
         else:
             self.model.load_state_dict(torch.load(str(model_path)))
         self.model.eval()
+        self.half = half
+        if self.half:
+            self.model.half()
         print('{}_{} FR model (arcface) generated'.format(net_mode, net_depth))
 
         self.input_size = [112,112]
@@ -47,14 +50,10 @@ class Arcface(object):
                         trans.ToTensor(),
                         trans.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
                                                 ])
-        print('warming up..')
-        import time
-        tic = time.time()
-        # zeros = np.zeros((20,20,3), dtype='uint8')
-        warmup_image = self.preproc_transform(Image.fromarray(np.zeros((20,20,3), dtype='uint8'))).to(self.device).unsqueeze(0)
-        self.model.forward(warmup_image)
-        toc = time.time()
-        print('warmed up! {:0.3f}s'.format(toc - tic))
+        print('Arcface warming up..')
+        zeros = np.zeros((100, 100, 3), dtype=np.uint8)
+        self.embed([zeros])
+        print('Arcface warmed up!')
 
     def get_embeds(self, faces):
         '''
@@ -74,11 +73,16 @@ class Arcface(object):
                 mirror = trans.functional.hflip(img)
                 input_ = self.preproc_transform(img).to(self.device).unsqueeze(0)
                 input_mirror = self.preproc_transform(mirror).to(self.device).unsqueeze(0)
+                if self.half:
+                    input_ = input_.half()
+                    input_mirror = input_mirror.half()
                 emb = self.model(input_)
                 emb_mirror = self.model(input_mirror)
                 emb = l2_norm(emb + emb_mirror).cpu().data.numpy()
             else:              
                 input_ = self.preproc_transform(img).to(self.device).unsqueeze(0)
+                if self.half:
+                    input_ = input_.half()
                 emb = self.model(input_).cpu().data.numpy()
             embs[i, ] = emb
         return embs
@@ -105,4 +109,13 @@ class Arcface(object):
     #     dist = torch.sum(torch.pow(diff, 2), dim=1)
     #     minimum, min_idx = torch.min(dist, dim=1)
     #     min_idx[minimum > self.threshold] = -1 # if no match, set idx to -1
-    #     return min_idx, minimum               
+    #     return min_idx, minimum
+
+    def get_embeds_batch(self, faces_batch):
+        '''
+        faces : list of ndarray (BGR channels)
+        '''
+        all_embs = []
+        for faces in faces_batch:
+            all_embs.append(self.embed(faces))
+        return all_embs
